@@ -1,0 +1,15 @@
+# 1. Kick Guest0 to start Basic Firmware
+XVisor# guest kick guest0
+# 2. Bind to virtual UART
+XVisor# vserial bind guest0/uart0
+# 3. Copy linux from NOR flash to RAM and start linux booting from RAM, 执行 cmdlist
+[guest0/uart0] basic# autoexec
+# 4. Wait for Linux prompt to come-up and then try out some commands
+[guest0/uart0] / # ls
+(Note: "autoexec" is a short-cut command)
+(Note: The <xvisor_source_directory>/tests/riscv/virt64/linux/cmdlist file which we have added to guest NOR flash contains set of commands for booting linux from NOR flash)
+Enter character seqence 'ESCAPE+x+q" return to Xvisor prompt]
+[guest0/uart0] / #
+
+                        
+https://blog.csdn.net/jingyu_1/article/details/145459156

@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# LINUX_KERNEL_PATH=/mnt/e/00study/00code/linux-6.10/linux-6.10-rc5
-LINUX_KERNEL_PATH=/home/yyh/linux-6.10-rc5
-BUILDROOT_PATH=/mnt/e/00study/00code/buildroot/output/images
-XVISOR_PATH=/mnt/e/00study/00code/xvisor
-OPEN_SBI_PATH=/mnt/e/00study/00code/opensbi
-BUSYBOX_PATH=/mnt/e/00study/00code/xvisor/busybox-1.36.1
-## /mnt/e/00study/00code/xvisor/docs/riscv/riscv64-qemu.txt ##
+# LINUX_KERNEL_PATH=/home/yyh/workspace_/linux-6.10/linux-6.10-rc5
+LINUX_KERNEL_PATH=/home/yyh/workspace_/virtiofs/linux-6.8.1
+BUILDROOT_PATH=/home/yyh/workspace_/xvisor/busybox-1.36.1
+XVISOR_PATH=/home/yyh/workspace_/xvisor
+OPEN_SBI_PATH=/home/yyh/workspace_/xvisor/opensbi
+BUSYBOX_PATH=/home/yyh/workspace_/xvisor
+## /home/yyh/workspace_/xvisor/docs/riscv/riscv64-qemu.txt ##
+
 export PATH=/opt/riscv/bin:$PATH
 export CROSS_COMPILE=riscv64-unknown-linux-gnu-
 export ARCH=riscv
+
 do_build_xvisor()
 {
     cd $XVISOR_PATH
@@ -24,9 +26,10 @@ do_build_opensbi()
     cd $OPEN_SBI_PATH
     make PLATFORM=generic
 }
+
 do_build_busybox()
 {
-    $BUSYBOX_PATH/build.sh
+    $BUSYBOX_PATH/build_busybox.sh
 }
 
 
@@ -56,17 +59,36 @@ do_setup_disk()
     cp -f $LINUX_KERNEL_PATH/arch/riscv/boot/Image ./build/disk/images/riscv/virt64/Image
     dtc -q -I dts -O dtb -o ./build/disk/images/riscv/virt64/virt64.dtb ./tests/riscv/virt64/linux/virt64.dts
     cp -f $BUILDROOT_PATH/rootfs.img ./build/disk/images/riscv/virt64/rootfs.img
-    genext2fs -B 1024 -b 32768 -d ./build/disk ./build/disk.img
+    genext2fs -B 2048 -b 32768 -d ./build/disk ./build/disk.img
 }
 
 do_start()
 {
     qemu-system-riscv64 -M virt -m 512M -nographic \
-    -bios $OPEN_SBI_PATH/build/platform/generic/firmware/fw_jump.bin \
+    -kernel ./build/vmm.bin \
+    -drive file=./build/disk.img,format=raw,if=virtio \
+    -append 'vmm.bootcmd="vfs mount initrd /;vfs run /boot.xscript;vfs cat /system/banner.txt"' 
+    # -bios $OPEN_SBI_PATH/build/platform/generic/firmware/fw_jump.bin \
+    # \
+    # -initrd ./build/disk.img \
+    #;root=/dev/vda2
+    # -d cpu -monitor telnet:127.0.0.1:5555,server,nowait
+    # -d in_asm,cpu,int -serial tcp::1234,server,nowait
+
+}
+
+
+do_start1()
+{
+    qemu-system-riscv64 -M virt -m 512M -nographic \
     -kernel ./build/vmm.bin \
     -initrd ./build/disk.img \
-    -append 'vmm.bootcmd="vfs mount initrd /;vfs run /boot.xscript;vfs cat /system/banner.txt"' \
-    -d in_asm,cpu,int -serial tcp::1234,server,nowait
+    -append 'vmm.bootcmd="vfs mount initrd /;vfs run /boot.xscript"' 
+    # -bios $OPEN_SBI_PATH/build/platform/generic/firmware/fw_jump.bin \
+
+    # -d cpu -monitor telnet:127.0.0.1:5555,server,nowait
+    # -d in_asm,cpu,int -serial tcp::1234,server,nowait
+
 }
 
 BUILD_XVISOR=flase
@@ -75,7 +97,7 @@ BUILD_BUSYBOX=false
 BUILD_ALL=false
 START_QEMU=false
 
-while getopts "A:S:lbxs" arg
+while getopts "A:S:lbxso" arg
 do
     case $arg in
         A)
@@ -100,6 +122,9 @@ do
             echo "will start qemu"
             START_QEMU=true
             ;;
+        o)
+            do_build_opensbi
+        ;;
     esac
 done
 
@@ -116,6 +141,7 @@ fi
 
 if [ "$BUILD_XVISOR" = true ]; then
     do_build_xvisor
+    do_setup_disk
 fi
 
 if [ "$BUILD_ALL" = true ]; then
@@ -127,5 +153,5 @@ if [ "$BUILD_ALL" = true ]; then
 fi
 
 if [ "$START_QEMU" = true ]; then
-    do_start
+    do_start1
 fi
