@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # LINUX_KERNEL_PATH=/mnt/e/00study/00code/linux-6.10/linux-6.10-rc5
-LINUX_KERNEL_PATH=/home/yyh/linux-6.10-rc5
-BUILDROOT_PATH=/mnt/e/00study/00code/buildroot/output/images
-XVISOR_PATH=/mnt/e/00study/00code/xvisor
-OPEN_SBI_PATH=/mnt/e/00study/00code/opensbi
-BUSYBOX_PATH=/mnt/e/00study/00code/xvisor/busybox-1.36.1
+LINUX_KERNEL_PATH=/home/yyh/workspace_/linux-5.15.0
+XVISOR_PATH=/home/yyh/workspace_/xvisor
+OPEN_SBI_PATH=/home/yyh/workspace_/xvisor/opensbi-1.6
+busybox_version=1.33.1
+BUSYBOX_PATH=/home/yyh/workspace_/xvisor/busybox-$busybox_version
 ## /mnt/e/00study/00code/xvisor/docs/riscv/riscv64-qemu.txt ##
-export PATH=/opt/riscv/bin:$PATH
+export PATH=/opt/riscv64-22/riscv/bin:$PATH
 export CROSS_COMPILE=riscv64-unknown-linux-gnu-
 export ARCH=riscv
 do_build_xvisor()
@@ -22,21 +22,37 @@ do_build_xvisor()
 do_build_opensbi()
 {
     cd $OPEN_SBI_PATH
+    make clean
     make PLATFORM=generic
 }
+
 do_build_busybox()
 {
-    $BUSYBOX_PATH/build.sh
-}
+    cp $XVISOR_PATH/tests/common/busybox/busybox-${busybox_version}_defconfig $BUSYBOX_PATH/.config
+    cd $BUSYBOX_PATH
+    make oldconfig
+    make install
 
+    mkdir -p ./_install/etc/init.d
+    mkdir -p ./_install/dev
+    mkdir -p ./_install/proc
+    mkdir -p ./_install/sys
+    ln -sf /sbin/init ./_install/init
+    cp -f $XVISOR_PATH/tests/common/busybox/fstab ./_install/etc/fstab
+    cp -f $XVISOR_PATH/tests/common/busybox/rcS ./_install/etc/init.d/rcS
+    cp -f $XVISOR_PATH/tests/common/busybox/motd ./_install/etc/motd
+    cp -f $XVISOR_PATH/tests/common/busybox/logo_linux_clut224.ppm ./_install/etc/logo_linux_clut224.ppm
+    cp -f $XVISOR_PATH/tests/common/busybox/logo_linux_vga16.ppm ./_install/etc/logo_linux_vga16.ppm
+    cd ./_install; find ./ | cpio -o -H newc > ../rootfs.img; cd -
+}
 
 do_build_linux() 
 {
     cd $LINUX_KERNEL_PATH
     cp arch/riscv/configs/defconfig arch/riscv/configs/tmp-virt64_defconfig
     $XVISOR_PATH/tests/common/scripts/update-linux-defconfig.sh -p arch/riscv/configs/tmp-virt64_defconfig -f $XVISOR_PATH/tests/riscv/virt64/linux/linux_extra.config
-    make O=$LINUX_KERNEL_PATH tmp-virt64_defconfig
-    make O=$LINUX_KERNEL_PATH Image dtbs 
+    make O=$LINUX_KERNEL_PATH tmp-virt64_defconfig -j8
+    make O=$LINUX_KERNEL_PATH Image dtbs -j8
 }
 
 do_setup_disk() 
@@ -55,18 +71,29 @@ do_setup_disk()
     cp -f ./tests/riscv/virt64/xscript/one_guest_virt64.xscript ./build/disk/boot.xscript
     cp -f $LINUX_KERNEL_PATH/arch/riscv/boot/Image ./build/disk/images/riscv/virt64/Image
     dtc -q -I dts -O dtb -o ./build/disk/images/riscv/virt64/virt64.dtb ./tests/riscv/virt64/linux/virt64.dts
-    cp -f $BUILDROOT_PATH/rootfs.img ./build/disk/images/riscv/virt64/rootfs.img
+    cp -f $BUSYBOX_PATH/rootfs.img ./build/disk/images/riscv/virt64/rootfs.img
     genext2fs -B 1024 -b 32768 -d ./build/disk ./build/disk.img
+    cp $OPEN_SBI_PATH/build/platform/generic/firmware/fw_jump.bin .
 }
 
 do_start()
 {
-    qemu-system-riscv64 -M virt -m 512M -nographic \
-    -bios $OPEN_SBI_PATH/build/platform/generic/firmware/fw_jump.bin \
+    # qemu-system-riscv64 -M virt -m 512M -nographic \
+    # -bios ./fw_jump.bin \
+    # -kernel ./build/vmm.bin \
+    # -initrd ./build/disk.img \
+    # -append 'vmm.bootcmd="vfs mount initrd /;vfs run /boot.xscript"'
+    # -d in_asm,cpu,int -serial tcp::1234,server,nowait
+
+    /home/yyh/workspace_/qemu/output/qemu-system-riscv64 \
+    -M virt \
+    -m 1G \
+    -nographic \
     -kernel ./build/vmm.bin \
     -initrd ./build/disk.img \
-    -append 'vmm.bootcmd="vfs mount initrd /;vfs run /boot.xscript;vfs cat /system/banner.txt"' \
-    -d in_asm,cpu,int -serial tcp::1234,server,nowait
+    -append 'vmm.bootcmd="vfs mount initrd /;vfs run /boot.xscript"'
+    # -bios ./fw_jump.bin \
+
 }
 
 BUILD_XVISOR=flase
@@ -74,8 +101,9 @@ BUILD_LINUX=false
 BUILD_BUSYBOX=false
 BUILD_ALL=false
 START_QEMU=false
+BUILD_OPENSBI=false
 
-while getopts "A:S:lbxs" arg
+while getopts "A:S:lbxos" arg
 do
     case $arg in
         A)
@@ -100,6 +128,10 @@ do
             echo "will start qemu"
             START_QEMU=true
             ;;
+        o)
+            echo "will build opensbi"
+            BUILD_OPENSBI=true
+            ;;
     esac
 done
 
@@ -116,6 +148,11 @@ fi
 
 if [ "$BUILD_XVISOR" = true ]; then
     do_build_xvisor
+    do_setup_disk
+fi
+
+if [ "$BUILD_OPENSBI" = true ]; then
+    do_build_opensbi
 fi
 
 if [ "$BUILD_ALL" = true ]; then

@@ -1,0 +1,33 @@
+##Foundation v8
+准备工作：
+需要一个 Arm 账户，用此帐户进行下载和许可证创建
+https://developer.arm.com/
+
+生成 Fast Models 产品许可证：
+Fast Models 使用基于用户的许可或FlexNet 许可.
+Arm 的一些工具采用了 FlexNet Publisher 许可技术。
+从 Arm 开发人员网站下载最新的 FlexNet Publisher 二进制文件：https://developer.arm.com/tools-and-software/software-development-tools/license-management/downloads
+注意，FlexNet 实用程序要求 Linux 主机上存在 Linux Standard Base （LSB）。如果不是，则实用程序将不会运行。
+https://developer.arm.com/documentation/ka004651/latest
+如何在 Linux 工作站上设置 FlexNet 浮动许可证服务器？
+wget -c https://developer.arm.com/-/cdn-downloads/FlexNet-Publisher/v11.17.2.0/BX002-PT-00007-r11p17-02rel0.tar.gz
+https://developer.arm.com/documentation/ka001803/latest
+
+
+
+
+
+https://developer.arm.com/documentation/102441/0101/Overview?lang=en
+
+
+
+
+##########################riscv64###########
+riscv toolchain
+https://mirror.iscas.ac.cn/riscv-toolchains/release/riscv-collab/riscv-gnu-toolchain/
+
+busybox 1.31.1
+wget -c https://www.busybox.net/downloads/busybox-1.31.1.tar.bz2
+
+opensbi 1.0
+wget -c https://github.com/riscv-software-src/opensbi/archive/refs/tags/v1.0.tar.gz
