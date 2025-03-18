@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# LINUX_KERNEL_PATH=/mnt/e/00study/00code/linux-6.10/linux-6.10-rc5
 LINUX_KERNEL_PATH=/home/yyh/workspace_/linux-5.15.0
-XVISOR_PATH=/home/yyh/workspace_/xvisor
-OPEN_SBI_PATH=/home/yyh/workspace_/xvisor/opensbi-1.6
+XVISOR_PATH=`pwd`
+OPEN_SBI_PATH=`pwd`/opensbi-1.6
 busybox_version=1.33.1
-BUSYBOX_PATH=/home/yyh/workspace_/xvisor/busybox-$busybox_version
+BUSYBOX_PATH=`pwd`/busybox-$busybox_version
 ## /mnt/e/00study/00code/xvisor/docs/riscv/riscv64-qemu.txt ##
 export PATH=/opt/riscv64-22/riscv/bin:$PATH
 export CROSS_COMPILE=riscv64-unknown-linux-gnu-
@@ -66,9 +65,9 @@ do_setup_disk()
     mkdir -p ./build/disk/images/riscv/virt64
     dtc -q -I dts -O dtb -o ./build/disk/images/riscv/virt64-guest.dtb ./tests/riscv/virt64/virt64-guest.dts
     cp -f ./build/tests/riscv/virt64/basic/firmware.bin ./build/disk/images/riscv/virt64/firmware.bin
-    cp -f ./tests/riscv/virt64/linux/nor_flash.list ./build/disk/images/riscv/virt64/nor_flash.list
-    cp -f ./tests/riscv/virt64/linux/cmdlist ./build/disk/images/riscv/virt64/cmdlist
-    cp -f ./tests/riscv/virt64/xscript/one_guest_virt64.xscript ./build/disk/boot.xscript
+    cp -f ./tests/riscv/virt64/linux/{nor_flash.list,cmdlist} ./build/disk/images/riscv/virt64/
+    # cp -f ./tests/riscv/virt64/xscript/one_guest_virt64.xscript ./build/disk/boot.xscript
+    cp -f ./tests/riscv/virt64/xscript/two_guest_virt64.xscript ./build/disk/boot.xscript
     cp -f $LINUX_KERNEL_PATH/arch/riscv/boot/Image ./build/disk/images/riscv/virt64/Image
     dtc -q -I dts -O dtb -o ./build/disk/images/riscv/virt64/virt64.dtb ./tests/riscv/virt64/linux/virt64.dts
     cp -f $BUSYBOX_PATH/rootfs.img ./build/disk/images/riscv/virt64/rootfs.img
@@ -103,9 +102,9 @@ BUILD_ALL=false
 START_QEMU=false
 BUILD_OPENSBI=false
 
-while getopts "A:S:lbxos" arg
+while getopts "A:S:lbxos" opt;
 do
-    case $arg in
+    case $opt in
         A)
             echo "will build all ."
             BUILD_ALL=true
